@@ -28,7 +28,7 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
   useEffect(() => {
     const numerologyTitle = user?.numerologyProfile?.title || "Nhà Toán Học Tương Lai";
     const name = user?.name ? user.name.split(' ').pop() : "bạn";
-    
+
     const initialMessage: Message = {
       id: 'welcome',
       role: 'model',
@@ -58,8 +58,12 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
     setIsTyping(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      
+      const apiKey = localStorage.getItem('user_api_key') || '';
+      if (!apiKey) {
+        throw new Error("API Key configuration missing");
+      }
+      const ai = new GoogleGenAI({ apiKey });
+
       // Construct System Instruction based on User Profile
       const systemInstruction = `
         Bạn là một gia sư Toán học AI thân thiện, thông minh và kiên nhẫn.
@@ -84,11 +88,11 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: [
-            ...messages.slice(-5).map(m => ({
-                role: m.role,
-                parts: [{ text: m.text }]
-            })),
-            { role: 'user', parts: [{ text: `[Chế độ: ${helpLevel}] ${userMessage.text}` }] }
+          ...messages.slice(-5).map(m => ({
+            role: m.role,
+            parts: [{ text: m.text }]
+          })),
+          { role: 'user', parts: [{ text: `[Chế độ: ${helpLevel}] ${userMessage.text}` }] }
         ],
         config: {
           systemInstruction: systemInstruction,
@@ -106,12 +110,18 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
       };
 
       setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chat Error:", error);
+      let msgText = "Ôi, kết nối bị gián đoạn rồi. Bạn kiểm tra lại mạng giúp mình nhé! 🔌";
+
+      if (error.message?.includes("API Key") || error.toString().includes("API Key")) {
+        msgText = "Bạn chưa nhập API Key hoặc Key không hợp lệ. Hãy vào Cài đặt (Settings) để kiểm tra nhé! 🔑";
+      }
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'model',
-        text: "Ôi, kết nối bị gián đoạn rồi. Bạn kiểm tra lại mạng giúp mình nhé! 🔌",
+        text: msgText,
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -136,14 +146,14 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 bg-white/90 dark:bg-surface-dark/90 backdrop-blur-md sticky top-0 z-20 shadow-sm border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-3">
-            <div className="relative">
-                <div className="bg-center bg-no-repeat bg-cover rounded-full w-10 h-10 border-2 border-primary shadow-sm" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDxFoFckWvUOySFEn5vYjE7CQAY1fArdTKZzuAfZ1JH_MXWGFOcoEzhPO7poPrsyIvdJot5ccD7NyBv0fGMnMFAJv-5Hen1WSdOjvAx-qFusi8OPqlWXiolrdt2o6VeAToc0q39_SUsS7bw9OYdcPTJlzpxLElqvMiVjO2PyskLHJ_s_zdWPGIWCQ8XuKkJvfahbJ2nNB3sHWo5uX03-Y5wdF6heCqSTr-nx8x0fOadCtEmZsXZ70nR-xL1NxfP8iWHp90144kOU-8")' }}></div>
-                <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-white dark:border-dark-bg"></div>
-            </div>
-            <div className="flex flex-col">
-                <h2 className="text-base font-bold leading-tight">AI Tutor</h2>
-                <span className="text-xs text-teal-600 dark:text-teal-400 font-medium">Luôn sẵn sàng</span>
-            </div>
+          <div className="relative">
+            <div className="bg-center bg-no-repeat bg-cover rounded-full w-10 h-10 border-2 border-primary shadow-sm" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDxFoFckWvUOySFEn5vYjE7CQAY1fArdTKZzuAfZ1JH_MXWGFOcoEzhPO7poPrsyIvdJot5ccD7NyBv0fGMnMFAJv-5Hen1WSdOjvAx-qFusi8OPqlWXiolrdt2o6VeAToc0q39_SUsS7bw9OYdcPTJlzpxLElqvMiVjO2PyskLHJ_s_zdWPGIWCQ8XuKkJvfahbJ2nNB3sHWo5uX03-Y5wdF6heCqSTr-nx8x0fOadCtEmZsXZ70nR-xL1NxfP8iWHp90144kOU-8")' }}></div>
+            <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-white dark:border-dark-bg"></div>
+          </div>
+          <div className="flex flex-col">
+            <h2 className="text-base font-bold leading-tight">AI Tutor</h2>
+            <span className="text-xs text-teal-600 dark:text-teal-400 font-medium">Luôn sẵn sàng</span>
+          </div>
         </div>
         <button className="flex size-10 items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
           <MoreVertical size={20} />
@@ -160,119 +170,114 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
 
         {/* Messages */}
         <div className="flex flex-col gap-4">
-            {messages.map((msg) => (
-                <div key={msg.id} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    {msg.role === 'model' && (
-                         <div className="bg-center bg-no-repeat bg-cover rounded-full w-8 h-8 shrink-0 border border-gray-200 dark:border-gray-700 shadow-sm" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDxFoFckWvUOySFEn5vYjE7CQAY1fArdTKZzuAfZ1JH_MXWGFOcoEzhPO7poPrsyIvdJot5ccD7NyBv0fGMnMFAJv-5Hen1WSdOjvAx-qFusi8OPqlWXiolrdt2o6VeAToc0q39_SUsS7bw9OYdcPTJlzpxLElqvMiVjO2PyskLHJ_s_zdWPGIWCQ8XuKkJvfahbJ2nNB3sHWo5uX03-Y5wdF6heCqSTr-nx8x0fOadCtEmZsXZ70nR-xL1NxfP8iWHp90144kOU-8")' }}></div>
-                    )}
-                    
-                    <div className={`flex flex-col gap-1 max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                        <div className={`px-4 py-3 shadow-sm text-sm leading-relaxed math-formula whitespace-pre-wrap ${
-                            msg.role === 'user' 
-                            ? 'bg-primary text-[#102221] rounded-2xl rounded-br-none font-medium' 
-                            : 'bg-white dark:bg-surface-dark text-gray-800 dark:text-gray-100 rounded-2xl rounded-bl-none border border-gray-100 dark:border-gray-700'
-                        }`}>
-                           <div dangerouslySetInnerHTML={{ __html: msg.text.replace(/\n/g, '<br/>') }} />
-                        </div>
-                        <span className="text-[10px] text-gray-400 font-medium px-1">
-                            {msg.role === 'user' ? 'Bạn' : 'AI Tutor'} • {formatTime(msg.timestamp)}
-                        </span>
-                    </div>
+          {messages.map((msg) => (
+            <div key={msg.id} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {msg.role === 'model' && (
+                <div className="bg-center bg-no-repeat bg-cover rounded-full w-8 h-8 shrink-0 border border-gray-200 dark:border-gray-700 shadow-sm" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDxFoFckWvUOySFEn5vYjE7CQAY1fArdTKZzuAfZ1JH_MXWGFOcoEzhPO7poPrsyIvdJot5ccD7NyBv0fGMnMFAJv-5Hen1WSdOjvAx-qFusi8OPqlWXiolrdt2o6VeAToc0q39_SUsS7bw9OYdcPTJlzpxLElqvMiVjO2PyskLHJ_s_zdWPGIWCQ8XuKkJvfahbJ2nNB3sHWo5uX03-Y5wdF6heCqSTr-nx8x0fOadCtEmZsXZ70nR-xL1NxfP8iWHp90144kOU-8")' }}></div>
+              )}
 
-                    {msg.role === 'user' && (
-                        <div className="w-8 h-8 rounded-full bg-teal-100 dark:bg-teal-900 text-primary flex items-center justify-center shrink-0 border border-primary/20">
-                            <User size={16} />
-                        </div>
-                    )}
+              <div className={`flex flex-col gap-1 max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`px-4 py-3 shadow-sm text-sm leading-relaxed math-formula whitespace-pre-wrap ${msg.role === 'user'
+                  ? 'bg-primary text-[#102221] rounded-2xl rounded-br-none font-medium'
+                  : 'bg-white dark:bg-surface-dark text-gray-800 dark:text-gray-100 rounded-2xl rounded-bl-none border border-gray-100 dark:border-gray-700'
+                  }`}>
+                  <div dangerouslySetInnerHTML={{ __html: msg.text.replace(/\n/g, '<br/>') }} />
                 </div>
-            ))}
-            
-            {/* Typing Indicator */}
-            {isTyping && (
-                <div className="flex items-end gap-2 justify-start animate-fade-in-up">
-                    <div className="bg-center bg-no-repeat bg-cover rounded-full w-8 h-8 shrink-0 border border-gray-200 dark:border-gray-700" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDxFoFckWvUOySFEn5vYjE7CQAY1fArdTKZzuAfZ1JH_MXWGFOcoEzhPO7poPrsyIvdJot5ccD7NyBv0fGMnMFAJv-5Hen1WSdOjvAx-qFusi8OPqlWXiolrdt2o6VeAToc0q39_SUsS7bw9OYdcPTJlzpxLElqvMiVjO2PyskLHJ_s_zdWPGIWCQ8XuKkJvfahbJ2nNB3sHWo5uX03-Y5wdF6heCqSTr-nx8x0fOadCtEmZsXZ70nR-xL1NxfP8iWHp90144kOU-8")' }}></div>
-                    <div className="px-4 py-3 bg-white dark:bg-surface-dark rounded-2xl rounded-bl-none shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                        <span className="text-xs text-gray-500 font-medium italic">Đang suy nghĩ...</span>
-                    </div>
+                <span className="text-[10px] text-gray-400 font-medium px-1">
+                  {msg.role === 'user' ? 'Bạn' : 'AI Tutor'} • {formatTime(msg.timestamp)}
+                </span>
+              </div>
+
+              {msg.role === 'user' && (
+                <div className="w-8 h-8 rounded-full bg-teal-100 dark:bg-teal-900 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                  <User size={16} />
                 </div>
-            )}
-            <div ref={messagesEndRef} />
+              )}
+            </div>
+          ))}
+
+          {/* Typing Indicator */}
+          {isTyping && (
+            <div className="flex items-end gap-2 justify-start animate-fade-in-up">
+              <div className="bg-center bg-no-repeat bg-cover rounded-full w-8 h-8 shrink-0 border border-gray-200 dark:border-gray-700" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDxFoFckWvUOySFEn5vYjE7CQAY1fArdTKZzuAfZ1JH_MXWGFOcoEzhPO7poPrsyIvdJot5ccD7NyBv0fGMnMFAJv-5Hen1WSdOjvAx-qFusi8OPqlWXiolrdt2o6VeAToc0q39_SUsS7bw9OYdcPTJlzpxLElqvMiVjO2PyskLHJ_s_zdWPGIWCQ8XuKkJvfahbJ2nNB3sHWo5uX03-Y5wdF6heCqSTr-nx8x0fOadCtEmZsXZ70nR-xL1NxfP8iWHp90144kOU-8")' }}></div>
+              <div className="px-4 py-3 bg-white dark:bg-surface-dark rounded-2xl rounded-bl-none shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                <span className="text-xs text-gray-500 font-medium italic">Đang suy nghĩ...</span>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
         </div>
       </main>
 
       {/* Controls & Input */}
       <div className="bg-white dark:bg-surface-dark border-t border-gray-100 dark:border-gray-800 z-30 pb-safe">
-         
-         {/* Help Level Selector */}
-         <div className="px-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-gray-50 dark:border-gray-800">
-             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-1">Chế độ:</span>
-             
-             <button 
-                onClick={() => setHelpLevel('hint')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                    helpLevel === 'hint' 
-                    ? 'bg-yellow-100 text-yellow-700 ring-2 ring-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:ring-yellow-700' 
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400'
-                }`}
-             >
-                <Lightbulb size={14} />
-                Gợi ý nhẹ
-             </button>
 
-             <button 
-                onClick={() => setHelpLevel('guide')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                    helpLevel === 'guide' 
-                    ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-700' 
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400'
-                }`}
-             >
-                <BookOpen size={14} />
-                Hướng dẫn
-             </button>
+        {/* Help Level Selector */}
+        <div className="px-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-gray-50 dark:border-gray-800">
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-1">Chế độ:</span>
 
-             <button 
-                onClick={() => setHelpLevel('solution')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                    helpLevel === 'solution' 
-                    ? 'bg-green-100 text-green-700 ring-2 ring-green-200 dark:bg-green-900/30 dark:text-green-400 dark:ring-green-700' 
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400'
-                }`}
-             >
-                <PenTool size={14} />
-                Giải chi tiết
-             </button>
-         </div>
+          <button
+            onClick={() => setHelpLevel('hint')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${helpLevel === 'hint'
+              ? 'bg-yellow-100 text-yellow-700 ring-2 ring-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:ring-yellow-700'
+              : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400'
+              }`}
+          >
+            <Lightbulb size={14} />
+            Gợi ý nhẹ
+          </button>
 
-         {/* Input Area */}
-         <div className="p-3 pb-6 flex items-end gap-2 max-w-4xl mx-auto">
-            <button className="flex shrink-0 items-center justify-center rounded-full size-11 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-teal-50 hover:text-primary transition-colors">
-                <Calculator size={20} />
-            </button>
-            
-            <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center px-4 py-2 focus-within:ring-2 focus-within:ring-primary/50 transition-shadow">
-                <textarea 
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    className="w-full bg-transparent border-none focus:ring-0 text-sm text-gray-900 dark:text-white placeholder-gray-400 py-2 p-0 resize-none max-h-24 no-scrollbar" 
-                    placeholder="Nhập bài toán hoặc câu hỏi..." 
-                    rows={1}
-                />
-            </div>
-            
-            <button 
-                onClick={handleSendMessage}
-                disabled={!inputText.trim() || isTyping}
-                className={`flex shrink-0 items-center justify-center rounded-full size-11 transition-all transform active:scale-95 shadow-md ${
-                    !inputText.trim() || isTyping 
-                    ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed' 
-                    : 'bg-primary text-[#102221] hover:bg-primary-dark hover:shadow-lg'
-                }`}
-            >
-                <Send size={20} className={!inputText.trim() ? "" : "ml-0.5"} />
-            </button>
+          <button
+            onClick={() => setHelpLevel('guide')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${helpLevel === 'guide'
+              ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-700'
+              : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400'
+              }`}
+          >
+            <BookOpen size={14} />
+            Hướng dẫn
+          </button>
+
+          <button
+            onClick={() => setHelpLevel('solution')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${helpLevel === 'solution'
+              ? 'bg-green-100 text-green-700 ring-2 ring-green-200 dark:bg-green-900/30 dark:text-green-400 dark:ring-green-700'
+              : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400'
+              }`}
+          >
+            <PenTool size={14} />
+            Giải chi tiết
+          </button>
+        </div>
+
+        {/* Input Area */}
+        <div className="p-3 pb-6 flex items-end gap-2 max-w-4xl mx-auto">
+          <button className="flex shrink-0 items-center justify-center rounded-full size-11 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-teal-50 hover:text-primary transition-colors">
+            <Calculator size={20} />
+          </button>
+
+          <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center px-4 py-2 focus-within:ring-2 focus-within:ring-primary/50 transition-shadow">
+            <textarea
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="w-full bg-transparent border-none focus:ring-0 text-sm text-gray-900 dark:text-white placeholder-gray-400 py-2 p-0 resize-none max-h-24 no-scrollbar"
+              placeholder="Nhập bài toán hoặc câu hỏi..."
+              rows={1}
+            />
+          </div>
+
+          <button
+            onClick={handleSendMessage}
+            disabled={!inputText.trim() || isTyping}
+            className={`flex shrink-0 items-center justify-center rounded-full size-11 transition-all transform active:scale-95 shadow-md ${!inputText.trim() || isTyping
+              ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
+              : 'bg-primary text-[#102221] hover:bg-primary-dark hover:shadow-lg'
+              }`}
+          >
+            <Send size={20} className={!inputText.trim() ? "" : "ml-0.5"} />
+          </button>
         </div>
       </div>
     </div>
