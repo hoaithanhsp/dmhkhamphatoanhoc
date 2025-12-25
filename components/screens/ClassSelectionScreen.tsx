@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Check, FunctionSquare, Shapes, BarChart2, TrendingUp, Calculator, Lightbulb, Sparkles, Edit3, Plus, School, BookOpen, GraduationCap, Loader2, Binary, Sigma, Box, Circle, Triangle, Ruler, Scale, Divide, FileText, BrainCircuit } from 'lucide-react';
+import { ArrowLeft, Check, FunctionSquare, Shapes, BarChart2, TrendingUp, Calculator, Lightbulb, Sparkles, Edit3, Plus, School, BookOpen, GraduationCap, Loader2, Binary, Sigma, Box, Circle, Triangle, Ruler, Scale, Divide, FileText, BrainCircuit, ArrowRight as ArrowIcon } from 'lucide-react';
 
 interface Props {
   onNext: (grade: number, topics: string[]) => void;
@@ -19,94 +19,93 @@ interface Topic {
 
 type EducationLevel = 'primary' | 'middle' | 'high';
 
-// Standard Exam Review Topics to append to all grades
-const EXAM_REVIEWS: Topic[] = [
-    { id: 'review-mid-1', label: 'Ôn tập Giữa Học kỳ 1', subLabel: 'Tổng hợp kiến thức SGK', icon: FileText, isReview: true },
-    { id: 'review-end-1', label: 'Ôn tập Cuối Học kỳ 1', subLabel: 'Đề thi thử & Tổng hợp', icon: FileText, isReview: true },
-    { id: 'review-mid-2', label: 'Ôn tập Giữa Học kỳ 2', subLabel: 'Tổng hợp kiến thức SGK', icon: FileText, isReview: true },
-    { id: 'review-end-2', label: 'Ôn tập Cuối Học kỳ 2', subLabel: 'Đề thi thử & Tổng hợp', icon: FileText, isReview: true },
-];
-
-// Full Curriculum Data Mapping
+// Full Curriculum Data Mapping based on PDF "Kết nối tri thức"
 const CURRICULUM_DATA: Record<number, Topic[]> = {
   1: [
-    { id: 'g1-num', label: 'Số đến 100', subLabel: 'Đếm, so sánh số', icon: Calculator },
-    { id: 'g1-calc', label: 'Cộng trừ cơ bản', subLabel: 'Phạm vi 100', icon: Plus },
-    { id: 'g1-geo', label: 'Hình học phẳng', subLabel: 'Vuông, tròn, tam giác', icon: Shapes },
-    { id: 'g1-meas', label: 'Đo lường', subLabel: 'Dài ngắn, nặng nhẹ', icon: Ruler },
+    { id: 'g1-num', label: 'Số tự nhiên 0-100', subLabel: 'Đếm, đọc, viết số', icon: Calculator },
+    { id: 'g1-calc', label: 'Cộng trừ phạm vi 100', subLabel: 'Tính nhẩm, đặt tính', icon: Plus },
+    { id: 'g1-geo', label: 'Hình học cơ bản', subLabel: 'Vuông, tròn, tam giác', icon: Shapes },
+    { id: 'g1-meas', label: 'Đo lường', subLabel: 'Cm, giờ, ngày, tuần', icon: Ruler },
   ],
   2: [
-    { id: 'g2-num', label: 'Số đến 1000', subLabel: 'Cấu tạo số', icon: Calculator },
-    { id: 'g2-mul', label: 'Phép nhân chia', subLabel: 'Bảng cửu chương', icon: Divide },
-    { id: 'g2-geo', label: 'Hình tứ giác', subLabel: 'Chữ nhật, hình vuông', icon: Shapes },
-    { id: 'g2-meas', label: 'Đại lượng', subLabel: 'Kg, Lít, Giờ phút', icon: Scale },
+    { id: 'g2-num', label: 'Số đến 1000', subLabel: 'Cấu tạo số, so sánh', icon: Calculator },
+    { id: 'g2-calc', label: 'Phép cộng trừ', subLabel: 'Có nhớ, bảng cộng trừ', icon: Plus },
+    { id: 'g2-mul', label: 'Làm quen Nhân chia', subLabel: 'Bảng cửu chương 2,5', icon: Divide },
+    { id: 'g2-geo', label: 'Hình học phẳng & khối', subLabel: 'Tứ giác, khối trụ/cầu', icon: Box },
+    { id: 'g2-meas', label: 'Đo lường', subLabel: 'Dm, m, kg, lít, ngày giờ', icon: Scale },
   ],
   3: [
-    { id: 'g3-num', label: 'Số đến 10.000', subLabel: 'Cộng trừ nhân chia', icon: Calculator },
-    { id: 'g3-frac', label: 'Phân số', subLabel: 'Làm quen phân số', icon: Divide },
-    { id: 'g3-area', label: 'Diện tích', subLabel: 'Chu vi & Diện tích', icon: Box },
-    { id: 'g3-word', label: 'Toán có lời văn', subLabel: 'Giải toán 2 bước', icon: BookOpen },
+    { id: 'g3-num', label: 'Số đến 10.000', subLabel: 'Phép tính trong phạm vi', icon: Calculator },
+    { id: 'g3-calc', label: 'Nhân chia nâng cao', subLabel: 'Tính nhẩm, biểu thức', icon: Divide },
+    { id: 'g3-geo', label: 'Hình học phẳng', subLabel: 'Chu vi, diện tích HCN/HV', icon: Shapes },
+    { id: 'g3-meas', label: 'Đo lường', subLabel: 'Mm, g, ml, nhiệt độ', icon: Ruler },
   ],
   4: [
-    { id: 'g4-large', label: 'Số tự nhiên lớn', subLabel: 'Hàng triệu', icon: Calculator },
-    { id: 'g4-frac', label: 'Phân số nâng cao', subLabel: 'Tính toán phân số', icon: Divide },
-    { id: 'g4-geo', label: 'Hình học', subLabel: 'Bình hành, Hình thoi', icon: Shapes },
-    { id: 'g4-avg', label: 'Trung bình cộng', subLabel: 'Toán thống kê', icon: BarChart2 },
+    { id: 'g4-large', label: 'Số tự nhiên lớn', subLabel: 'Đến lớp triệu', icon: Binary },
+    { id: 'g4-frac', label: 'Phân số', subLabel: 'Khái niệm & 4 phép tính', icon: Divide },
+    { id: 'g4-geo', label: 'Hình học', subLabel: 'Góc, Bình hành, Thoi', icon: Shapes },
+    { id: 'g4-meas', label: 'Đo lường', subLabel: 'Yến, tạ, tấn, m²', icon: Scale },
   ],
   5: [
-    { id: 'g5-dec', label: 'Số thập phân', subLabel: 'Tính toán hỗn số', icon: Calculator },
-    { id: 'g5-perc', label: 'Tỉ số phần trăm', subLabel: 'Ứng dụng thực tế', icon: TrendingUp },
-    { id: 'g5-area', label: 'Diện tích đa giác', subLabel: 'Tam giác, Hình thang', icon: Triangle },
-    { id: 'g5-vol', label: 'Thể tích', subLabel: 'Hình hộp, Lập phương', icon: Box },
+    { id: 'g5-dec', label: 'Số thập phân', subLabel: 'Đọc, viết, tính toán', icon: Calculator },
+    { id: 'g5-perc', label: 'Tỉ số phần trăm', subLabel: 'Giải toán thực tế', icon: TrendingUp },
+    { id: 'g5-geo', label: 'Hình học', subLabel: 'Tam giác, Thang, Tròn', icon: Triangle },
+    { id: 'g5-meas', label: 'Chu vi & Diện tích', subLabel: 'Diện tích, Thể tích', icon: Box },
+    { id: 'g5-move', label: 'Chuyển động đều', subLabel: 'Vận tốc, quãng đường', icon: TrendingUp },
   ],
   6: [
-    { id: 'g6-nat', label: 'Số tự nhiên', subLabel: 'Lũy thừa, Chia hết', icon: Binary },
-    { id: 'g6-int', label: 'Số nguyên', subLabel: 'Số âm, trục số', icon: Calculator },
-    { id: 'g6-frac', label: 'Phân số', subLabel: 'Tính toán phân số', icon: Divide },
-    { id: 'g6-stat', label: 'Thống kê', subLabel: 'Biểu đồ tranh/cột', icon: BarChart2 },
-    { id: 'g6-geo', label: 'Hình học phẳng', subLabel: 'Đối xứng, Tam giác đều', icon: Shapes },
+    { id: 'g6-nat', label: 'Số tự nhiên', subLabel: 'Lũy thừa, chia hết', icon: Binary },
+    { id: 'g6-int', label: 'Số nguyên', subLabel: 'Phép tính số âm', icon: Plus },
+    { id: 'g6-geo', label: 'Hình học trực quan', subLabel: 'Tam giác đều, Lục giác', icon: Shapes },
+    { id: 'g6-frac', label: 'Phân số & Thập phân', subLabel: 'Tính toán & Làm tròn', icon: Divide },
+    { id: 'g6-stat', label: 'Thống kê & Xác suất', subLabel: 'Biểu đồ, Sự kiện', icon: BarChart2 },
+    { id: 'g6-basic-geo', label: 'Hình học phẳng', subLabel: 'Điểm, đường, góc', icon: Ruler },
   ],
   7: [
-    { id: 'g7-rat', label: 'Số hữu tỉ & thực', subLabel: 'Căn bậc hai, Số vô tỉ', icon: Calculator },
+    { id: 'g7-num', label: 'Số hữu tỉ & thực', subLabel: 'Căn bậc hai, làm tròn', icon: Calculator },
+    { id: 'g7-geo', label: 'Góc & Đường thẳng', subLabel: 'Song song, Bằng nhau', icon: Triangle },
+    { id: 'g7-solid', label: 'Hình khối', subLabel: 'Hộp chữ nhật, Lăng trụ', icon: Box },
     { id: 'g7-alg', label: 'Biểu thức đại số', subLabel: 'Đa thức một biến', icon: FunctionSquare },
-    { id: 'g7-geo3d', label: 'Hình khối', subLabel: 'Lăng trụ, Hình chóp', icon: Box },
-    { id: 'g7-geo2d', label: 'Góc & Đường thẳng', subLabel: 'Tam giác bằng nhau', icon: Triangle },
     { id: 'g7-prob', label: 'Xác suất', subLabel: 'Biến cố ngẫu nhiên', icon: Lightbulb },
   ],
   8: [
-    { id: 'g8-alg', label: 'Hằng đẳng thức', subLabel: 'Phân tích đa thức', icon: FunctionSquare },
-    { id: 'g8-frac', label: 'Phân thức đại số', subLabel: 'Cộng trừ nhân chia', icon: Divide },
-    { id: 'g8-eq', label: 'Phương trình', subLabel: 'Bậc nhất một ẩn', icon: TrendingUp },
-    { id: 'g8-geo', label: 'Tứ giác', subLabel: 'Thang, Bình hành, Thoi', icon: Shapes },
+    { id: 'g8-poly', label: 'Đa thức', subLabel: 'Hằng đẳng thức', icon: FunctionSquare },
+    { id: 'g8-quad', label: 'Tứ giác', subLabel: 'Thang, Bình hành, Thoi', icon: Shapes },
     { id: 'g8-func', label: 'Hàm số bậc nhất', subLabel: 'Đồ thị y = ax+b', icon: TrendingUp },
+    { id: 'g8-sim', label: 'Định lý Thalès', subLabel: 'Tam giác đồng dạng', icon: Triangle },
+    { id: 'g8-data', label: 'Phân tích dữ liệu', subLabel: 'Biểu đồ, Tần số', icon: BarChart2 },
   ],
   9: [
-    { id: 'g9-sys', label: 'Hệ phương trình', subLabel: 'Bậc nhất hai ẩn', icon: FunctionSquare },
-    { id: 'g9-root', label: 'Căn bậc hai/ba', subLabel: 'Biến đổi căn thức', icon: Calculator },
+    { id: 'g9-sys', label: 'Phương trình & Hệ PT', subLabel: 'Bậc nhất 2 ẩn', icon: FunctionSquare },
+    { id: 'g9-quad', label: 'Phương trình bậc 2', subLabel: 'Hàm số y = ax²', icon: TrendingUp },
+    { id: 'g9-trig', label: 'Hệ thức lượng', subLabel: 'Tam giác vuông', icon: Triangle },
     { id: 'g9-circle', label: 'Đường tròn', subLabel: 'Góc, Tiếp tuyến', icon: Circle },
-    { id: 'g9-trig', label: 'Hệ thức lượng', subLabel: 'Sin, Cos, Tan', icon: Triangle },
-    { id: 'g9-geo3d', label: 'Hình trụ, Nón, Cầu', subLabel: 'Diện tích, Thể tích', icon: Box },
+    { id: 'g9-solid', label: 'Hình Trụ, Nón, Cầu', subLabel: 'Diện tích, Thể tích', icon: Box },
+    { id: 'g9-prob', label: 'Thống kê & Xác suất', subLabel: 'Tần số, Biến cố', icon: BarChart2 },
   ],
   10: [
     { id: 'g10-set', label: 'Mệnh đề & Tập hợp', subLabel: 'Logic toán học', icon: Binary },
     { id: 'g10-ineq', label: 'Bất phương trình', subLabel: 'Hệ BPT bậc nhất', icon: Scale },
-    { id: 'g10-vec', label: 'Vectơ', subLabel: 'Tọa độ, Tích vô hướng', icon: ArrowLeft },
-    { id: 'g10-func', label: 'Hàm số bậc hai', subLabel: 'Parabol', icon: TrendingUp },
+    { id: 'g10-func', label: 'Hàm số bậc hai', subLabel: 'Parabol, Dấu tam thức', icon: TrendingUp },
+    { id: 'g10-geo', label: 'Hệ thức lượng', subLabel: 'Vectơ, Tọa độ', icon: ArrowIcon },
     { id: 'g10-stat', label: 'Thống kê', subLabel: 'Số đặc trưng', icon: BarChart2 },
+    { id: 'g10-comb', label: 'Đại số tổ hợp', subLabel: 'Quy tắc đếm, Nhị thức', icon: Calculator },
   ],
   11: [
-    { id: 'g11-trig', label: 'Lượng giác', subLabel: 'Phương trình lượng giác', icon: Triangle },
+    { id: 'g11-trig', label: 'Lượng giác', subLabel: 'Hàm số & Phương trình', icon: Triangle },
     { id: 'g11-seq', label: 'Dãy số', subLabel: 'Cấp số cộng/nhân', icon: Binary },
-    { id: 'g11-lim', label: 'Giới hạn & Đạo hàm', subLabel: 'Lim, Tiếp tuyến', icon: TrendingUp },
-    { id: 'g11-geo', label: 'Quan hệ không gian', subLabel: 'Song song, Vuông góc', icon: Box },
-    { id: 'g11-prob', label: 'Xác suất', subLabel: 'Quy tắc cộng/nhân', icon: Lightbulb },
+    { id: 'g11-calc', label: 'Giới hạn & Đạo hàm', subLabel: 'Lim, Hàm liên tục', icon: TrendingUp },
+    { id: 'g11-solid', label: 'Hình học không gian', subLabel: 'Song song, Vuông góc', icon: Box },
+    { id: 'g11-exp', label: 'Mũ & Logarit', subLabel: 'Hàm số, Phương trình', icon: Calculator },
+    { id: 'g11-prob', label: 'Xác suất', subLabel: 'Biến cố hợp, giao', icon: Lightbulb },
   ],
   12: [
-    { id: 'g12-func', label: 'Khảo sát hàm số', subLabel: 'Đơn điệu, Cực trị', icon: TrendingUp },
+    { id: 'g12-func', label: 'Ứng dụng đạo hàm', subLabel: 'Khảo sát hàm số', icon: TrendingUp },
+    { id: 'g12-vec', label: 'Vectơ không gian', subLabel: 'Hệ tọa độ Oxyz', icon: ArrowIcon },
+    { id: 'g12-stat', label: 'Số liệu ghép nhóm', subLabel: 'Các số đặc trưng', icon: BarChart2 },
     { id: 'g12-int', label: 'Nguyên hàm Tích phân', subLabel: 'Diện tích, Thể tích', icon: Sigma },
-    { id: 'g12-comp', label: 'Số phức', subLabel: 'Biểu diễn hình học', icon: Calculator },
-    { id: 'g12-geo', label: 'Mặt nón, Trụ, Cầu', subLabel: 'Hình học không gian', icon: Circle },
-    { id: 'g12-oxyz', label: 'Tọa độ Oxyz', subLabel: 'Phương trình mặt phẳng', icon: Box },
+    { id: 'g12-geo', label: 'Phương pháp tọa độ', subLabel: 'Mặt phẳng, đường thẳng', icon: Box },
+    { id: 'g12-prob', label: 'Xác suất điều kiện', subLabel: 'Công thức xác suất', icon: Lightbulb },
   ]
 };
 
@@ -135,8 +134,37 @@ export const ClassSelectionScreen: React.FC<Props> = ({ onNext, onBack, isGenera
   // Effect to update topics when grade changes
   useEffect(() => {
     const baseTopics = CURRICULUM_DATA[selectedGrade] || [];
-    // Combine base topics with Exam Reviews
-    const allTopics = [...baseTopics, ...EXAM_REVIEWS];
+    
+    // Add Exam Reviews
+    const examReviews: Topic[] = [
+      { id: 'review-mid-1', label: 'Ôn tập Giữa Học kỳ 1', subLabel: 'Tổng hợp kiến thức SGK', icon: FileText, isReview: true },
+      { id: 'review-end-1', label: 'Ôn tập Cuối Học kỳ 1', subLabel: 'Đề thi thử & Tổng hợp', icon: FileText, isReview: true },
+      { id: 'review-mid-2', label: 'Ôn tập Giữa Học kỳ 2', subLabel: 'Tổng hợp kiến thức SGK', icon: FileText, isReview: true },
+      { id: 'review-end-2', label: 'Ôn tập Cuối Học kỳ 2', subLabel: 'Đề thi thử & Tổng hợp', icon: FileText, isReview: true },
+    ];
+
+    // Add Special Exams based on Grade
+    if (selectedGrade === 9) {
+      examReviews.push({ 
+        id: 'review-entrance-10', 
+        label: 'Ôn thi vào Lớp 10', 
+        subLabel: 'Luyện đề tuyển sinh', 
+        icon: GraduationCap, 
+        isReview: true 
+      });
+    }
+
+    if (selectedGrade === 12) {
+      examReviews.push({ 
+        id: 'review-grad-high', 
+        label: 'Ôn thi Tốt nghiệp THPT', 
+        subLabel: 'Luyện đề Quốc gia', 
+        icon: GraduationCap, 
+        isReview: true 
+      });
+    }
+
+    const allTopics = [...baseTopics, ...examReviews];
     setTopics(allTopics);
     
     // Auto select first 3 regular topics by default

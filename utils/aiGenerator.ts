@@ -3,12 +3,11 @@ import { GoogleGenAI, SchemaType, Type } from "@google/genai";
 import { UserProfile, LearningUnit, GameActivity } from "../types";
 
 // --- CONFIGURATION ---
-const API_KEY_STORAGE_KEY = 'user_gemini_api_key';
-const FALLBACK_MODELS = [
-  'gemini-3-flash-preview',
-  'gemini-3-pro-preview',
-  'gemini-2.5-flash'
-];
+const MODELS = ['gemini-3-flash-preview', 'gemini-3-pro-preview', 'gemini-2.5-flash'];
+
+const getApiKey = (): string => {
+  return localStorage.getItem('user_api_key') || '';
+};
 
 const MATH_FORMATTING_INSTRUCTION = `
 QUY TẮC HIỂN THỊ CÔNG THỨC TOÁN HỌC (QUAN TRỌNG):
@@ -20,19 +19,11 @@ QUY TẮC HIỂN THỊ CÔNG THỨC TOÁN HỌC (QUAN TRỌNG):
 6. Khi giải bài, trình bày từng bước rõ ràng.
 `;
 
-// --- HELPER: GET API KEY ---
-const getApiKey = (): string => {
-  const storedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
-  if (storedKey) return storedKey;
-  // Fallback to env if available, but instructions prioritize localStorage
-  return process.env.API_KEY || "";
-};
-
-// --- HELPER: CALL GEMINI WITH FALLBACK ---
+// Helper to call Gemini with Fallback
 const callGeminiWithFallback = async (
-  prompt: string,
-  schema: any,
-  systemInstruction: string,
+  prompt: string, 
+  schema: any, 
+  systemInstruction?: string,
   temperature: number = 0.7
 ): Promise<any> => {
   const apiKey = getApiKey();
@@ -40,13 +31,13 @@ const callGeminiWithFallback = async (
     throw new Error("Vui lòng nhập API Key trong phần Cài đặt để sử dụng tính năng này.");
   }
 
-  const ai = new GoogleGenAI({ apiKey });
-
   let lastError: any = null;
 
-  for (const modelName of FALLBACK_MODELS) {
+  for (const modelName of MODELS) {
     try {
-      console.log(`Trying model: ${modelName}`);
+      console.log(`Attempting with model: ${modelName}`);
+      const ai = new GoogleGenAI({ apiKey });
+      
       const response = await ai.models.generateContent({
         model: modelName,
         contents: prompt,
@@ -59,12 +50,11 @@ const callGeminiWithFallback = async (
       });
 
       const jsonText = response.text;
-      if (!jsonText) throw new Error(`No data returned from model ${modelName}`);
-
-      return JSON.parse(jsonText); // Success!
+      if (!jsonText) throw new Error("No data returned");
+      return JSON.parse(jsonText);
 
     } catch (error: any) {
-      console.warn(`Model ${modelName} failed:`, error);
+      console.error(`Error with model ${modelName}:`, error);
       lastError = error;
       // Continue to next model
     }
@@ -72,65 +62,82 @@ const callGeminiWithFallback = async (
 
   // If all failed
   const errorMsg = lastError?.message || JSON.stringify(lastError);
-  throw new Error(errorMsg); // Just throw the message directly as requested: "hiển thị nguyên văn lỗi từ API"
+  throw new Error(`Tất cả các model đều thất bại. Lỗi: ${errorMsg}`);
 };
 
 export const generateLearningPath = async (
-  user: UserProfile,
+  user: UserProfile, 
   topics: string[]
 ): Promise<LearningUnit[]> => {
-
-  // --- 1. PHÂN TÍCH DỮ LIỆU LỊCH SỬ (ADVANCED LOGIC) ---
+  
+  // --- 1. PHÂN TÍCH DỮ LIỆU LỊCH SỬ & ĐÁNH GIÁ (DEEP ANALYSIS) ---
   const history = user.history || [];
   let performanceContext = "";
   let adjustedLevel = user.proficiencyLevel || 2; // Default Average
 
+  // 1a. Lịch sử học tập (History Analysis)
   if (history.length > 0) {
-    // Tìm các bài làm yếu (< 50%) và tốt (> 80%)
-    const weakUnits = history.filter(h => (h.score / h.totalQuestions) < 0.5);
-    const strongUnits = history.filter(h => (h.score / h.totalQuestions) >= 0.8);
-
-    const weakTopics = [...new Set(weakUnits.map(h => h.unitTitle))];
-    const strongTopics = [...new Set(strongUnits.map(h => h.unitTitle))];
-
-    // Tính điểm trung bình 5 bài gần nhất để xác định phong độ hiện tại
-    const recentHistory = history.slice(0, 5);
-    const recentAvg = recentHistory.reduce((acc, h) => acc + (h.score / h.totalQuestions), 0) / (recentHistory.length || 1);
-
-    // Điều chỉnh Level dựa trên phong độ thực tế
-    if (recentAvg < 0.5) adjustedLevel = 1; // Hạ xuống cơ bản
-    else if (recentAvg > 0.85) adjustedLevel = 4; // Tăng lên xuất sắc
-
-    performanceContext = `
-      PHÂN TÍCH DỮ LIỆU HỌC TẬP THỰC TẾ CỦA HỌC SINH (QUAN TRỌNG):
-      - Điểm trung bình gần đây: ${(recentAvg * 10).toFixed(1)}/10.
-      - Chủ đề đang yếu (CẦN KHẮC PHỤC NGAY): ${weakTopics.length > 0 ? weakTopics.join(", ") : "Không có, nền tảng tốt."}
-      - Chủ đề thế mạnh (CẦN PHÁT HUY): ${strongTopics.length > 0 ? strongTopics.join(", ") : "Đang phát triển."}
+      const weakUnits = history.filter(h => (h.score / h.totalQuestions) < 0.5);
+      const weakTopics = [...new Set(weakUnits.map(h => h.unitTitle))];
       
-      YÊU CẦU ĐIỀU CHỈNH LỘ TRÌNH:
-      1. Nếu có "Chủ đề đang yếu": BẮT BUỘC bài học đầu tiên của lộ trình phải là "Ôn tập lại [Chủ đề yếu]" với mức độ Dễ để lấy lại gốc.
-      2. Nếu "Điểm trung bình" cao (>8.0): Tăng tỷ lệ câu hỏi Vận dụng cao lên 50% cho các bài học mới.
-      3. Nếu "Điểm trung bình" thấp (<5.0): Giảm độ khó, tập trung vào lý thuyết và ví dụ minh họa, giải thích chi tiết.
+      const recentHistory = history.slice(0, 5);
+      const recentAvg = recentHistory.reduce((acc, h) => acc + (h.score / h.totalQuestions), 0) / (recentHistory.length || 1);
+
+      if (recentAvg < 0.5) adjustedLevel = 1; 
+      else if (recentAvg > 0.85) adjustedLevel = 4;
+
+      performanceContext += `
+      - LỊCH SỬ HỌC TẬP: Điểm trung bình gần đây ${(recentAvg * 10).toFixed(1)}/10.
+      - Chủ đề yếu cần khắc phục: ${weakTopics.length > 0 ? weakTopics.join(", ") : "Không có"}.
       `;
   } else {
-    performanceContext = "Học sinh mới, chưa có dữ liệu lịch sử. Hãy tạo lộ trình tiêu chuẩn theo lớp học.";
+      performanceContext += `- LỊCH SỬ: Học sinh mới, chưa có dữ liệu lịch sử.`;
   }
+
+  // 1b. Thần số học & Tính cách (Numerology & Personality)
+  const numProfile = user.numerologyProfile;
+  const numerologyContext = numProfile ? `
+      - THẦN SỐ HỌC (SỐ CHỦ ĐẠO ${user.numerologyNumber}):
+        + Điểm mạnh: ${numProfile.strengths.join(", ")}.
+        + Thách thức: ${numProfile.challenges.join(", ")}.
+        + Phong cách học: ${numProfile.learningStyle}.
+        + Động lực: ${numProfile.learningMotivation}.
+        + Cách tiếp cận toán: ${numProfile.mathApproach}.
+  ` : "";
+
+  // 1c. Đánh giá đầu vào & Ghi chú (User Input)
+  const userAssessmentContext = `
+      - ĐÁNH GIÁ ĐẦU VÀO (User Input):
+        + Học lực tự đánh giá: ${user.proficiencyLevel}/4 (1: Yếu, 4: Xuất sắc).
+        + Đặc điểm/Thói quen: ${user.learningHabits?.join(", ") || "Không rõ"}.
+        + GHI CHÚ ĐẶC BIỆT TỪ PHỤ HUYNH/HỌC SINH: "${user.aiNotes || "Không có ghi chú"}".
+  `;
 
   // --- 2. Construct the Prompt ---
   const prompt = `
-    Đóng vai một chuyên gia giáo dục toán học AI & Phân tích dữ liệu. Hãy tạo một lộ trình học tập tối ưu hóa theo ngày cho học sinh này:
+    Đóng vai một chuyên gia giáo dục toán học AI & Phân tích dữ liệu hành vi.
+    Hãy tạo một LỘ TRÌNH HỌC TẬP TỐI ƯU HÓA CAO ĐỘ (Hyper-Personalized) cho học sinh này:
     
-    THÔNG TIN CƠ BẢN:
+    === HỒ SƠ HỌC SINH TOÀN DIỆN ===
     - Lớp: ${user.grade}
-    - Phong cách học (Thần số học): ${user.numerologyProfile?.mathApproach || "Logic, trực quan"}
-    - Chủ đề mong muốn: ${topics.join(", ")}
-
+    - Chủ đề mong muốn học: ${topics.join(", ")}
+    ${numerologyContext}
+    ${userAssessmentContext}
     ${performanceContext}
+    ==================================
+
+    HƯỚNG DẪN TẠO LỘ TRÌNH (LOGIC XỬ LÝ):
+    1. Dựa vào "Thần số học" và "Đặc điểm thói quen" để điều chỉnh cách đặt câu hỏi và độ khó:
+       - Ví dụ: Nếu học sinh "Dễ mất tập trung" hoặc Số 3/5 -> Chia nhỏ bài học, nhiều câu hỏi ngắn, nội dung thú vị.
+       - Nếu học sinh "Thích giải đố" -> Tăng cường câu hỏi tư duy logic/puzzle.
+       - Nếu học sinh "Sợ số học" hoặc Học lực Yếu -> Bắt đầu bằng những câu cực dễ, khen ngợi nhiều trong phần giải thích.
+    2. Dựa vào "Ghi chú đặc biệt" (nếu có): Ưu tiên giải quyết vấn đề được nêu trong ghi chú (VD: yếu hình học -> tập trung hình học).
+    3. Dựa vào "Lịch sử": Nếu có chủ đề yếu, bài đầu tiên PHẢI là ôn tập chủ đề đó.
 
     YÊU CẦU CẤU TRÚC JSON:
     1. Tạo danh sách các "Learning Unit" (Bài học).
     2. Mỗi bài học bao gồm danh sách câu hỏi (Questions).
-    3. SỐ LƯỢNG CÂU HỎI: 5-10 câu/bài.
+    3. SỐ LƯỢNG CÂU HỎI: 5-10 câu/bài (Điều chỉnh tùy theo độ tập trung của học sinh).
     4. ĐA DẠNG HÌNH THỨC: 'multiple-choice', 'true-false', 'fill-in-blank'.
     5. Ngôn ngữ: Tiếng Việt.
 
@@ -159,10 +166,10 @@ export const generateLearningPath = async (
                   id: { type: Type.STRING },
                   type: { type: Type.STRING, enum: ["multiple-choice", "true-false", "fill-in-blank"] },
                   content: { type: Type.STRING },
-                  options: {
-                    type: Type.ARRAY,
+                  options: { 
+                    type: Type.ARRAY, 
                     items: { type: Type.STRING },
-                    nullable: true
+                    nullable: true 
                   },
                   correctAnswer: { type: Type.STRING },
                   explanation: { type: Type.STRING },
@@ -181,15 +188,17 @@ export const generateLearningPath = async (
 
   try {
     const parsedData = await callGeminiWithFallback(
-      prompt,
-      schema,
-      `You are an Adaptive AI Tutor. You analyze student history to create the perfect learning path. ${MATH_FORMATTING_INSTRUCTION}`
+      prompt, 
+      schema, 
+      `You are an Advanced Adaptive AI Tutor. You analyze numerology, psychology, and learning history to create the perfect math path. ${MATH_FORMATTING_INSTRUCTION}`
     );
-
-    const processedUnits: LearningUnit[] = parsedData.units.map((unit: any, index: number) => ({
+    
+    // Check if fields are initialized
+    const parsedUnits = parsedData.units || [];
+    const processedUnits: LearningUnit[] = parsedUnits.map((unit: any, index: number) => ({
       ...unit,
       id: `unit-${Date.now()}-${index}`,
-      status: index === 0 ? 'active' : 'locked',
+      status: index === 0 ? 'active' : 'locked', 
       level: adjustedLevel // Use the calculated level based on history
     }));
 
@@ -197,7 +206,8 @@ export const generateLearningPath = async (
 
   } catch (error) {
     console.error("AI Generation Error:", error);
-    throw error; // Propagate error for UI to handle
+    // Rethrow to let the UI handle it (showing red error) as per instructions
+    throw error;
   }
 };
 
@@ -206,7 +216,7 @@ export const generateChallengeUnit = async (
   user: UserProfile,
   currentUnit: LearningUnit
 ): Promise<LearningUnit | null> => {
-
+  
   const nextLevel = (currentUnit.level || 1) + 1;
 
   const prompt = `
@@ -244,10 +254,10 @@ export const generateChallengeUnit = async (
             id: { type: Type.STRING },
             type: { type: Type.STRING, enum: ["multiple-choice", "true-false", "fill-in-blank"] },
             content: { type: Type.STRING },
-            options: {
-              type: Type.ARRAY,
+            options: { 
+              type: Type.ARRAY, 
               items: { type: Type.STRING },
-              nullable: true
+              nullable: true 
             },
             correctAnswer: { type: Type.STRING },
             explanation: { type: Type.STRING },
@@ -270,7 +280,7 @@ export const generateChallengeUnit = async (
 
     return {
       ...parsedUnit,
-      id: currentUnit.id,
+      id: currentUnit.id, 
       status: 'active',
       level: nextLevel
     };
@@ -286,7 +296,7 @@ export const generateComprehensiveTest = async (user: UserProfile): Promise<Lear
   const historyStats = user.history || [];
   const weakAreas = historyStats.filter(h => (h.score / h.totalQuestions) < 0.6).map(h => h.unitTitle).join(", ");
   const strongAreas = historyStats.filter(h => (h.score / h.totalQuestions) >= 0.8).map(h => h.unitTitle).join(", ");
-
+  
   // Collect topics from current learning path to ensure coverage
   const pathTopics = user.learningPath ? user.learningPath.map(u => u.title).join(", ") : user.selectedTopics?.join(", ") || "Toán tổng hợp";
 
@@ -330,10 +340,10 @@ export const generateComprehensiveTest = async (user: UserProfile): Promise<Lear
             id: { type: Type.STRING },
             type: { type: Type.STRING, enum: ["multiple-choice", "true-false", "fill-in-blank"] },
             content: { type: Type.STRING },
-            options: {
-              type: Type.ARRAY,
+            options: { 
+              type: Type.ARRAY, 
               items: { type: Type.STRING },
-              nullable: true
+              nullable: true 
             },
             correctAnswer: { type: Type.STRING },
             explanation: { type: Type.STRING },
@@ -350,8 +360,7 @@ export const generateComprehensiveTest = async (user: UserProfile): Promise<Lear
     const parsedUnit = await callGeminiWithFallback(
       prompt,
       schema,
-      `You are a precise Exam Creator AI. You create balanced, progressive difficulty tests. ${MATH_FORMATTING_INSTRUCTION}`,
-      0.7
+      `You are a precise Exam Creator AI. You create balanced, progressive difficulty tests. ${MATH_FORMATTING_INSTRUCTION}`
     );
 
     return {
@@ -425,7 +434,7 @@ export const generateEntertainmentContent = async (user: UserProfile): Promise<G
   };
 
   try {
-    const parsed = await callGeminiWithFallback(
+     const parsed = await callGeminiWithFallback(
       prompt,
       schema,
       `You are a fun and creative Gamification Master for kids. ${MATH_FORMATTING_INSTRUCTION}`,
@@ -435,8 +444,17 @@ export const generateEntertainmentContent = async (user: UserProfile): Promise<G
 
   } catch (error) {
     console.error("Game Generation Error", error);
-    // Fallback static data if AI fails
-    return [
+    // If AI completely fails (even fallback), return static data
+    // Or throw error depending on whether we want to stop progress. 
+    // Instructions say: "Nếu tất cả các model đều thất bại -> Hiện thông báo lỗi màu đỏ...". 
+    // So we should probably throw or let the static fallback be minimal. 
+    // But since it's entertainment, maybe fallback is fine. 
+    // However, specifically for AI Tasks (Step 1,2,3), instructions say stop. 
+    // This is entertainment, but I'll err on the side of throwing to be consistent with "display API error".
+    // But wait, the previous code had fallback. I will keep fallback for games to not break the fun.
+    // The "Stop progress" rule applies to "process columns" (Steps), which sounds like Learning Path generation or Analysis.
+    
+     return [
       {
         id: "fallback-1",
         type: "puzzle",

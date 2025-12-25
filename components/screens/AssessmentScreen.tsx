@@ -1,19 +1,46 @@
+
 import React, { useState } from 'react';
 import { ChevronLeft, Brain, ArrowRight, Sparkles } from 'lucide-react';
 
 interface Props {
-  onNext: () => void;
+  onNext: (proficiency: number, habits: string[], notes: string) => void;
   onBack: () => void;
-  setProficiency: (level: number) => void;
+  // Removed direct setProficiency prop, handling via onNext
 }
 
-export const AssessmentScreen: React.FC<Props> = ({ onNext, onBack, setProficiency }) => {
+export const AssessmentScreen: React.FC<Props> = ({ onNext, onBack }) => {
   const [level, setLevel] = useState(3);
+  const [note, setNote] = useState('');
+  
+  // Habits state
+  const [selectedHabits, setSelectedHabits] = useState<string[]>(['🧩 Thích giải đố']);
+
+  const habitsList = [
+    { id: 't1', label: '🐢 Tính toán chậm' },
+    { id: 't2', label: '🧩 Thích giải đố' },
+    { id: 't3', label: '🦋 Dễ mất tập trung' },
+    { id: 't4', label: '🥱 Nhanh chán' },
+    { id: 't5', label: '🤖 Tư duy logic' },
+    { id: 't6', label: '😨 Sợ số học' },
+    { id: 't7', label: '📚 Chăm chỉ' },
+    { id: 't8', label: '🎮 Thích vừa học vừa chơi' },
+  ];
 
   const handleLevelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value);
     setLevel(val);
-    setProficiency(val);
+  };
+
+  const toggleHabit = (label: string) => {
+    if (selectedHabits.includes(label)) {
+      setSelectedHabits(selectedHabits.filter(h => h !== label));
+    } else {
+      setSelectedHabits([...selectedHabits, label]);
+    }
+  };
+
+  const handleSubmit = () => {
+    onNext(level, selectedHabits, note);
   };
 
   const proficiencyLabels = ["Yếu", "Trung bình", "Khá", "Xuất sắc"];
@@ -27,7 +54,7 @@ export const AssessmentScreen: React.FC<Props> = ({ onNext, onBack, setProficien
         </button>
         <h2 className="text-lg font-bold leading-tight flex-1 text-center">Đánh giá năng lực</h2>
         <div className="flex w-10 items-center justify-end">
-          <button onClick={onNext} className="text-gray-500 text-sm font-bold hover:text-primary transition-colors">Bỏ qua</button>
+          <button onClick={handleSubmit} className="text-gray-500 text-sm font-bold hover:text-primary transition-colors">Bỏ qua</button>
         </div>
       </div>
 
@@ -84,24 +111,30 @@ export const AssessmentScreen: React.FC<Props> = ({ onNext, onBack, setProficien
           <h3 className="text-base font-semibold">Đặc điểm thói quen</h3>
           <p className="text-xs text-gray-500 mb-1">Chọn các từ khóa mô tả đúng nhất (có thể chọn nhiều)</p>
           <div className="flex flex-wrap gap-2.5">
-            {[
-              { id: 't1', label: '🐢 Tính toán chậm', checked: false },
-              { id: 't2', label: '🧩 Thích giải đố', checked: true },
-              { id: 't3', label: '🦋 Dễ mất tập trung', checked: false },
-              { id: 't4', label: '🥱 Nhanh chán', checked: false },
-              { id: 't5', label: '🤖 Tư duy logic', checked: false },
-              { id: 't6', label: '😨 Sợ số học', checked: false },
-            ].map(tag => (
-              <div key={tag.id} className="relative group">
-                <input type="checkbox" id={tag.id} defaultChecked={tag.checked} className="peer sr-only" />
-                <label 
-                  htmlFor={tag.id}
-                  className="cursor-pointer inline-flex items-center justify-center px-4 py-2.5 border border-teal-100 rounded-xl text-sm font-medium text-slate-600 bg-white hover:border-primary/50 transition-all select-none shadow-sm peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-md"
-                >
-                  {tag.label}
-                </label>
-              </div>
-            ))}
+            {habitsList.map(tag => {
+              const isChecked = selectedHabits.includes(tag.label);
+              return (
+                <div key={tag.id} className="relative group">
+                  <input 
+                    type="checkbox" 
+                    id={tag.id} 
+                    checked={isChecked}
+                    onChange={() => toggleHabit(tag.label)}
+                    className="peer sr-only" 
+                  />
+                  <label 
+                    htmlFor={tag.id}
+                    className={`cursor-pointer inline-flex items-center justify-center px-4 py-2.5 border rounded-xl text-sm font-medium transition-all select-none shadow-sm
+                      ${isChecked 
+                        ? 'bg-primary text-white border-primary shadow-md' 
+                        : 'border-teal-100 text-slate-600 bg-white hover:border-primary/50'
+                      }`}
+                  >
+                    {tag.label}
+                  </label>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -113,6 +146,8 @@ export const AssessmentScreen: React.FC<Props> = ({ onNext, onBack, setProficien
           </div>
           <div className="relative">
             <textarea 
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
               className="w-full bg-white text-sm rounded-xl p-4 border border-teal-100 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-slate-400 resize-none h-32 leading-relaxed shadow-sm"
               placeholder="Ví dụ: Bé thường gặp khó khăn với các bài toán hình học không gian, nhưng lại tính nhẩm rất nhanh..."
             ></textarea>
@@ -126,7 +161,7 @@ export const AssessmentScreen: React.FC<Props> = ({ onNext, onBack, setProficien
       {/* Button */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-primary-surface via-primary-surface to-transparent z-20 flex justify-center w-full max-w-md mx-auto">
         <button 
-          onClick={onNext}
+          onClick={handleSubmit}
           className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-base py-4 px-6 rounded-2xl shadow-lg shadow-teal-500/30 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
         >
           <span>Tiếp tục phân tích</span>

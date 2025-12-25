@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Zap, Bookmark, CheckCircle, Lightbulb, Send, XCircle, AlertCircle } from 'lucide-react';
 import { LearningUnit, Question, QuizResult } from '../../types';
@@ -128,14 +129,17 @@ export const QuizScreen: React.FC<Props> = ({ unit, onFinish, onBack, isReviewMo
           <div className="mb-4 text-lg">
             <span className="font-bold text-gray-600 block mb-1">Đáp án đúng: </span>
             <div className="bg-white/50 inline-block px-4 py-2 rounded-lg border border-gray-200">
-               <span className="font-bold text-gray-900 text-xl">{question.correctAnswer === 'True' ? 'Đúng' : question.correctAnswer === 'False' ? 'Sai' : question.correctAnswer}</span>
+               <span 
+                 className="font-bold text-gray-900 text-xl math-formula"
+                 dangerouslySetInnerHTML={{ __html: question.correctAnswer === 'True' ? 'Đúng' : question.correctAnswer === 'False' ? 'Sai' : question.correctAnswer }}
+               />
             </div>
           </div>
         )}
 
         <div className="text-base md:text-lg text-gray-800 dark:text-gray-200 leading-relaxed">
-           <span className="font-bold block mb-2 text-primary-dark">Giải thích chi tiết:</span>
-           {question.explanation}
+           <span className="font-bold block mb-2 text-primary-dark font-sans">Giải thích chi tiết:</span>
+           <div className="math-formula" dangerouslySetInnerHTML={{ __html: question.explanation }} />
         </div>
       </div>
     );
@@ -197,15 +201,16 @@ export const QuizScreen: React.FC<Props> = ({ unit, onFinish, onBack, isReviewMo
                   `}
                 >
                   <div className="flex items-center gap-6 text-left relative z-10 w-full">
-                    <div className={`size-12 md:size-14 rounded-xl text-xl md:text-2xl font-bold flex shrink-0 items-center justify-center transition-colors
+                    <div className={`size-12 md:size-14 rounded-xl text-xl md:text-2xl font-bold flex shrink-0 items-center justify-center transition-colors font-sans
                       ${labelBg}
                     `}>
                       {labels[idx]}
                     </div>
-                    {/* Answer Text - Using Lexend for clear math display */}
-                    <span className="text-xl md:text-2xl font-medium text-gray-800 dark:text-white leading-normal font-display flex-1">
-                      {ans}
-                    </span>
+                    {/* Answer Text - Render as HTML for Math */}
+                    <span 
+                      className="text-xl md:text-2xl font-medium text-gray-800 dark:text-white leading-normal math-formula flex-1"
+                      dangerouslySetInnerHTML={{ __html: ans }}
+                    />
                   </div>
                   {icon && <div className="ml-4">{icon}</div>}
                 </button>
@@ -241,7 +246,7 @@ export const QuizScreen: React.FC<Props> = ({ unit, onFinish, onBack, isReviewMo
                  onClick={() => handleAnswerSelect(opt)}
                  className={`flex-1 h-48 md:h-64 rounded-3xl border-2 flex flex-col items-center justify-center gap-4 transition-all shadow-sm ${containerClass}`}
                >
-                 <span className="text-4xl md:text-5xl font-bold">{opt}</span>
+                 <span className="text-4xl md:text-5xl font-bold font-sans">{opt}</span>
                  {(isChecked || isReviewMode) && isSelected && (
                     isThisCorrect ? <CheckCircle className="w-10 h-10" /> : <XCircle className="w-10 h-10" />
                  )}
@@ -267,7 +272,7 @@ export const QuizScreen: React.FC<Props> = ({ unit, onFinish, onBack, isReviewMo
                    handleAnswerSelect(inputValue);
                  }
                }}
-               className={`w-full h-20 md:h-24 px-6 text-3xl md:text-4xl font-bold rounded-2xl border-2 outline-none bg-white dark:bg-surface-dark dark:text-white text-center tracking-widest
+               className={`w-full h-20 md:h-24 px-6 text-3xl md:text-4xl font-bold rounded-2xl border-2 outline-none bg-white dark:bg-surface-dark dark:text-white text-center tracking-widest math-formula
                  ${(isChecked || isReviewMode) 
                     ? (isCurrentCorrect ? 'border-green-500 bg-green-50 text-green-700' : 'border-red-500 bg-red-50 text-red-700')
                     : 'border-teal-100 focus:border-primary placeholder-gray-300'
@@ -279,7 +284,7 @@ export const QuizScreen: React.FC<Props> = ({ unit, onFinish, onBack, isReviewMo
                <button 
                  onClick={() => handleAnswerSelect(inputValue)}
                  disabled={!inputValue}
-                 className="absolute right-3 top-3 bottom-3 bg-primary hover:bg-primary-dark text-white px-8 rounded-xl font-bold text-lg disabled:opacity-50 transition-colors"
+                 className="absolute right-3 top-3 bottom-3 bg-primary hover:bg-primary-dark text-white px-8 rounded-xl font-bold text-lg disabled:opacity-50 transition-colors font-sans"
                >
                  Kiểm tra
                </button>
@@ -298,14 +303,14 @@ export const QuizScreen: React.FC<Props> = ({ unit, onFinish, onBack, isReviewMo
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex flex-col items-center max-w-[60%]">
-          <h2 className="text-gray-900 dark:text-white text-lg md:text-xl font-bold leading-tight truncate w-full text-center">
+          <h2 className="text-gray-900 dark:text-white text-lg md:text-xl font-bold leading-tight truncate w-full text-center font-sans">
              {isReviewMode ? "Xem lại bài làm" : unit.title}
           </h2>
-          <span className="text-sm text-teal-600 dark:text-teal-400 font-bold tracking-wide mt-0.5">Câu {currentIndex + 1} <span className="text-gray-400 font-normal">/</span> {totalQuestions}</span>
+          <span className="text-sm text-teal-600 dark:text-teal-400 font-bold tracking-wide mt-0.5 font-sans">Câu {currentIndex + 1} <span className="text-gray-400 font-normal">/</span> {totalQuestions}</span>
         </div>
         <div className="flex items-center justify-end gap-2 px-4 py-2 rounded-full bg-teal-50 dark:bg-teal-500/10 border border-teal-100 dark:border-teal-500/20">
           <Zap className="text-primary w-5 h-5 fill-current" />
-          <p className="text-primary-dark dark:text-primary text-base font-bold leading-normal shrink-0">XP</p>
+          <p className="text-primary-dark dark:text-primary text-base font-bold leading-normal shrink-0 font-sans">XP</p>
         </div>
       </header>
 
@@ -328,9 +333,9 @@ export const QuizScreen: React.FC<Props> = ({ unit, onFinish, onBack, isReviewMo
            </div>
            <div className="flex flex-1 flex-col gap-1.5 items-start">
              <div className="flex items-center gap-2">
-               <p className="text-teal-700 dark:text-teal-300 text-xs font-bold uppercase tracking-wide bg-teal-100 dark:bg-teal-900/30 px-2 py-0.5 rounded">AI Tutor</p>
+               <p className="text-teal-700 dark:text-teal-300 text-xs font-bold uppercase tracking-wide bg-teal-100 dark:bg-teal-900/30 px-2 py-0.5 rounded font-sans">AI Tutor</p>
              </div>
-             <div className="relative text-base md:text-lg font-medium leading-relaxed rounded-2xl rounded-tl-none px-6 py-4 bg-white dark:bg-surface-dark text-gray-700 dark:text-gray-200 shadow-sm border border-teal-50 dark:border-teal-500/10 w-full">
+             <div className="relative text-base md:text-lg font-medium leading-relaxed rounded-2xl rounded-tl-none px-6 py-4 bg-white dark:bg-surface-dark text-gray-700 dark:text-gray-200 shadow-sm border border-teal-50 dark:border-teal-500/10 w-full font-sans">
                <p>{isChecked 
                    ? (isCurrentCorrect ? "Giỏi lắm! Bạn đã làm đúng rồi. 🎉" : "Không sao cả, hãy xem giải thích bên dưới nhé. 👇")
                    : (question.difficulty === 'easy' ? "Câu này khởi động nhẹ nhàng thôi nhé! 😉" : "Tập trung nào, bạn làm được mà! 🚀")
@@ -344,10 +349,10 @@ export const QuizScreen: React.FC<Props> = ({ unit, onFinish, onBack, isReviewMo
            <div className="rounded-3xl bg-white dark:bg-surface-dark border-2 border-white/50 dark:border-white/5 p-8 md:p-10 shadow-xl shadow-teal-100/50 dark:shadow-none">
              <div className="flex justify-between items-start mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
                <div className="flex gap-3">
-                 <span className="bg-teal-50 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 text-xs font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider border border-teal-100 dark:border-teal-500/20">
+                 <span className="bg-teal-50 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 text-xs font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider border border-teal-100 dark:border-teal-500/20 font-sans">
                     {question.type === 'multiple-choice' ? 'Trắc nghiệm' : question.type === 'true-false' ? 'Đúng / Sai' : 'Điền từ'}
                  </span>
-                 <span className={`text-xs font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider border ${
+                 <span className={`text-xs font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider border font-sans ${
                      question.difficulty === 'easy' ? 'bg-green-50 text-green-700 border-green-100' :
                      question.difficulty === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-100' :
                      'bg-red-50 text-red-700 border-red-100'
@@ -361,9 +366,10 @@ export const QuizScreen: React.FC<Props> = ({ unit, onFinish, onBack, isReviewMo
              </div>
              
              {/* Large Question Text */}
-             <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2 leading-normal tracking-tight">
-               {question.content}
-             </h3>
+             <div 
+               className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2 leading-relaxed tracking-tight math-formula"
+               dangerouslySetInnerHTML={{ __html: question.content }}
+             />
            </div>
 
            {/* Dynamic Answer Section */}
@@ -377,7 +383,7 @@ export const QuizScreen: React.FC<Props> = ({ unit, onFinish, onBack, isReviewMo
          {/* Hint Button */}
          {!isChecked && !isReviewMode && (
            <div className="flex justify-center mt-4 relative z-10 pb-4">
-              <button className="group relative inline-flex items-center gap-2 px-6 py-3 rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 text-base font-bold hover:bg-teal-100 dark:hover:bg-teal-900/30 transition-colors border border-teal-100 dark:border-teal-800">
+              <button className="group relative inline-flex items-center gap-2 px-6 py-3 rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 text-base font-bold hover:bg-teal-100 dark:hover:bg-teal-900/30 transition-colors border border-teal-100 dark:border-teal-800 font-sans">
                 <Lightbulb className="w-5 h-5 group-hover:animate-bounce" />
                 Cần gợi ý? (-5 XP)
               </button>
@@ -389,14 +395,14 @@ export const QuizScreen: React.FC<Props> = ({ unit, onFinish, onBack, isReviewMo
       <footer className="fixed bottom-0 left-0 md:left-64 right-0 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-xl border-t border-teal-100 dark:border-white/5 p-5 md:p-6 z-40 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.05)]">
         <div className="flex gap-6 max-w-4xl mx-auto">
           {!isReviewMode && (
-             <button onClick={onBack} className="flex-none px-8 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-bold text-lg hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200 transition-colors flex items-center justify-center min-w-[120px]">
+             <button onClick={onBack} className="flex-none px-8 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-bold text-lg hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200 transition-colors flex items-center justify-center min-w-[120px] font-sans">
                Bỏ qua
              </button>
           )}
           <button 
             onClick={handleNext}
             disabled={!isReviewMode && !isChecked}
-            className={`flex-1 rounded-2xl text-white text-xl font-bold py-4 shadow-xl flex items-center justify-center gap-3 group transition-all active:scale-[0.99]
+            className={`flex-1 rounded-2xl text-white text-xl font-bold py-4 shadow-xl flex items-center justify-center gap-3 group transition-all active:scale-[0.99] font-sans
               ${(!isReviewMode && !isChecked) ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed shadow-none text-gray-500' : 'bg-primary hover:bg-primary-dark shadow-teal-500/30'}
             `}
           >
