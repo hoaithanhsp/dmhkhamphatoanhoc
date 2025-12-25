@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, MoreVertical, Calculator, Brain, LifeBuoy, Send, Bot, User, Sparkles, Lightbulb, BookOpen, PenTool, Loader2 } from 'lucide-react';
+import { ChevronLeft, MoreVertical, Calculator, Brain, LifeBuoy, Send, Bot, User, Sparkles, Lightbulb, BookOpen, PenTool, Loader2, X } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { GoogleGenAI } from "@google/genai";
 
@@ -12,6 +12,7 @@ interface Message {
   id: string;
   role: 'user' | 'model';
   text: string;
+  image?: string; // Base64 string of the uploaded image
   timestamp: number;
 }
 
@@ -23,6 +24,8 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
   const [isTyping, setIsTyping] = useState(false);
   const [helpLevel, setHelpLevel] = useState<HelpLevel>('guide');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize Chat History with a personalized welcome message
   useEffect(() => {
@@ -43,18 +46,42 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert("Ảnh quá lớn! Vui lòng chọn ảnh nhỏ hơn 5MB.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelectedImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSendMessage = async () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() && !selectedImage) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       text: inputText,
+      image: selectedImage || undefined,
       timestamp: Date.now()
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
+    setSelectedImage(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setIsTyping(true);
 
     try {
@@ -85,14 +112,36 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
         Hãy phản hồi dựa trên yêu cầu của học sinh và chế độ hỗ trợ đã chọn.
       `;
 
+      // Prepare content parts
+      const parts: any[] = [];
+      if (userMessage.image) {
+        // Extract base64 (remove data:image/jpeg;base64, prefix)
+        const base64Data = userMessage.image.split(',')[1];
+        const mimeType = userMessage.image.split(';')[0].split(':')[1];
+        parts.push({
+          inlineData: {
+            mimeType: mimeType,
+            data: base64Data
+          }
+        });
+      }
+      if (userMessage.text) {
+        parts.push({ text: `[Chế độ: ${helpLevel}] ${userMessage.text}` });
+      }
+
+      // Construct history for context (text only for previous turns for simplicity and token saving, 
+      // though Gemini supports multi-modal history, usually we send text history + current image)
+      // Note: Sending too many previous images might hit limits, so we'll just send text history.
+      const history = messages.slice(-5).map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }] // Only sending text history
+      }));
+
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.5-flash', // Using 2.5 flash for better multi-modal performance
         contents: [
-          ...messages.slice(-5).map(m => ({
-            role: m.role,
-            parts: [{ text: m.text }]
-          })),
-          { role: 'user', parts: [{ text: `[Chế độ: ${helpLevel}] ${userMessage.text}` }] }
+          ...history,
+          { role: 'user', parts: parts }
         ],
         config: {
           systemInstruction: systemInstruction,
@@ -100,7 +149,7 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
         }
       });
 
-      const aiResponseText = response.text || "Xin lỗi, mình đang gặp chút trục trặc. Bạn thử lại nhé!";
+      const aiResponseText = response.text || "Xin lỗi, mình đang gặp chút trục trặc hoặc không đọc được ảnh. Bạn thử lại nhé!";
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -177,6 +226,18 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
               )}
 
               <div className={`flex flex-col gap-1 max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                {msg.image && (
+                  <div className={`p-1 rounded-2xl mb-1 ${msg.role === 'user'
+                    ? 'bg-primary/20 rounded-br-none'
+                    : 'bg-gray-100 dark:bg-gray-800 rounded-bl-none'
+                    }`}>
+                    <img
+                      src={msg.image}
+                      alt="Uploaded content"
+                      className="max-w-full rounded-xl max-h-60 object-contain border border-black/5 dark:border-white/5"
+                    />
+                  </div>
+                )}
                 <div className={`px-4 py-3 shadow-sm text-sm leading-relaxed math-formula whitespace-pre-wrap ${msg.role === 'user'
                   ? 'bg-primary text-[#102221] rounded-2xl rounded-br-none font-medium'
                   : 'bg-white dark:bg-surface-dark text-gray-800 dark:text-gray-100 rounded-2xl rounded-bl-none border border-gray-100 dark:border-gray-700'
@@ -251,8 +312,38 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
           </button>
         </div>
 
+        {/* Image Preview */}
+        {selectedImage && (
+          <div className="px-4 pt-2 -mb-2">
+            <div className="relative inline-block">
+              <img src={selectedImage} alt="Preview" className="h-20 w-auto rounded-lg border border-gray-200 shadow-sm" />
+              <button
+                onClick={handleRemoveImage}
+                className="absolute -top-1 -right-1 bg-gray-900 text-white rounded-full p-1 shadow-md hover:bg-red-500 transition-colors"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Input Area */}
         <div className="p-3 pb-6 flex items-end gap-2 max-w-4xl mx-auto">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageSelect}
+            accept="image/*"
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex shrink-0 items-center justify-center rounded-full size-11 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-teal-50 hover:text-primary transition-colors tooltip"
+            title="Tải ảnh lên"
+          >
+            <Sparkles size={20} className={selectedImage ? "text-primary" : ""} />
+          </button>
+
           <button className="flex shrink-0 items-center justify-center rounded-full size-11 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-teal-50 hover:text-primary transition-colors">
             <Calculator size={20} />
           </button>
@@ -263,20 +354,20 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
               className="w-full bg-transparent border-none focus:ring-0 text-sm text-gray-900 dark:text-white placeholder-gray-400 py-2 p-0 resize-none max-h-24 no-scrollbar"
-              placeholder="Nhập bài toán hoặc câu hỏi..."
+              placeholder={selectedImage ? "Thêm ghi chú cho ảnh..." : "Nhập bài toán hoặc câu hỏi..."}
               rows={1}
             />
           </div>
 
           <button
             onClick={handleSendMessage}
-            disabled={!inputText.trim() || isTyping}
-            className={`flex shrink-0 items-center justify-center rounded-full size-11 transition-all transform active:scale-95 shadow-md ${!inputText.trim() || isTyping
+            disabled={(!inputText.trim() && !selectedImage) || isTyping}
+            className={`flex shrink-0 items-center justify-center rounded-full size-11 transition-all transform active:scale-95 shadow-md ${(!inputText.trim() && !selectedImage) || isTyping
               ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
               : 'bg-primary text-[#102221] hover:bg-primary-dark hover:shadow-lg'
               }`}
           >
-            <Send size={20} className={!inputText.trim() ? "" : "ml-0.5"} />
+            <Send size={20} className={(!inputText.trim() && !selectedImage) ? "" : "ml-0.5"} />
           </button>
         </div>
       </div>
