@@ -1,5 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { ChevronLeft, MoreVertical, Calculator, Brain, LifeBuoy, Send, Bot, User, Sparkles, Lightbulb, BookOpen, PenTool, Loader2, X } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { GoogleGenAI } from "@google/genai";
@@ -92,6 +95,7 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
       const ai = new GoogleGenAI({ apiKey });
 
       // Construct System Instruction based on User Profile
+      // Construct System Instruction based on User Profile
       const systemInstruction = `
         Bạn là một gia sư Toán học AI thân thiện, thông minh và kiên nhẫn.
         Học sinh của bạn tên là ${user?.name || 'Học sinh'}, đang học lớp ${user?.grade || 8}.
@@ -102,7 +106,10 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
         QUY TẮC TRẢ LỜI (RẤT QUAN TRỌNG):
         1. Luôn sử dụng Tiếng Việt.
         2. Phong cách: Gần gũi, khích lệ, dùng emoji phù hợp.
-        3. Định dạng Toán học: Sử dụng Unicode đẹp (², ³, √, π, ÷, ×) hoặc HTML (<sup>, <sub>) để hiển thị công thức rõ ràng. KHÔNG dùng LaTeX thuần ($...$).
+        3. Định dạng Toán học: SỬ DỤNG LATEX cho tất cả các công thức toán học.
+           - Công thức trong dòng (inline): đặt giữa dấu $. Ví dụ: $x^2 + 2x + 1 = 0$
+           - Công thức riêng dòng (block): đặt giữa dấu $$. Ví dụ: $$ \\frac{-b \\pm \\sqrt{\\Delta}}{2a} $$
+           - KHÔNG dùng các ký tự Unicode lạ nếu có thể dùng LaTeX để hiển thị đẹp hơn.
         
         CHẾ ĐỘ HỖ TRỢ HIỆN TẠI: ${helpLevel.toUpperCase()}
         - Nếu chế độ là 'HINT' (Gợi ý nhẹ): CHỈ đưa ra gợi ý, công thức liên quan hoặc bước đầu tiên. KHÔNG giải hết. Khuyến khích học sinh tự làm tiếp.
@@ -242,7 +249,19 @@ export const ChatScreen: React.FC<Props> = ({ user }) => {
                   ? 'bg-primary text-[#102221] rounded-2xl rounded-br-none font-medium'
                   : 'bg-white dark:bg-surface-dark text-gray-800 dark:text-gray-100 rounded-2xl rounded-bl-none border border-gray-100 dark:border-gray-700'
                   }`}>
-                  <div dangerouslySetInnerHTML={{ __html: msg.text.replace(/\n/g, '<br/>') }} />
+                  {msg.role === 'user' ? (
+                    <div dangerouslySetInnerHTML={{ __html: msg.text.replace(/\n/g, '<br/>') }} />
+                  ) : (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
+                      components={{
+                        p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
+                  )}
                 </div>
                 <span className="text-[10px] text-gray-400 font-medium px-1">
                   {msg.role === 'user' ? 'Bạn' : 'AI Tutor'} • {formatTime(msg.timestamp)}
